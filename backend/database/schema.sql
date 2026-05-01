@@ -6,25 +6,10 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('Super Admin', 'Admin', 'User', 'Manager', 'Technician', 'Store Manager') DEFAULT 'User',
-    specialization VARCHAR(100) DEFAULT NULL,
-    status ENUM('Active', 'Disabled', 'Pending', 'Deleted') DEFAULT 'Active',
-    notification_preferences JSON DEFAULT NULL,
-    last_login DATETIME DEFAULT NULL,
-    failed_attempts INT DEFAULT 0,
-    is_locked BOOLEAN DEFAULT FALSE,
-    created_by INT DEFAULT NULL,
+    role ENUM('Admin', 'User', 'Manager') DEFAULT 'User',
+    status ENUM('Active', 'Disabled') DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS role_permissions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    role_name VARCHAR(50) NOT NULL,
-    permission_key VARCHAR(100) NOT NULL,
-    is_enabled BOOLEAN DEFAULT TRUE,
-    UNIQUE KEY (role_name, permission_key)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS password_resets (
@@ -39,17 +24,12 @@ CREATE TABLE IF NOT EXISTS password_resets (
 CREATE TABLE IF NOT EXISTS maintenance_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    assigned_to INT DEFAULT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
-    category VARCHAR(100),
-    priority ENUM('Low', 'Medium', 'High', 'Urgent') DEFAULT 'Medium',
-    status ENUM('Pending', 'Assigned', 'In Progress', 'Completed', 'Rejected') DEFAULT 'Pending',
-    assigned_at DATETIME DEFAULT NULL,
+    status ENUM('Pending', 'In Progress', 'Completed', 'Rejected') DEFAULT 'Pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS request_images (
@@ -63,149 +43,9 @@ CREATE TABLE IF NOT EXISTS request_images (
 CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    type VARCHAR(50) NOT NULL, -- task_assigned, status_updated, low_stock, etc.
-    title VARCHAR(150) NOT NULL,
     message TEXT NOT NULL,
-    related_entity_type VARCHAR(50) DEFAULT NULL, -- request, task, inventory
-    related_entity_id INT DEFAULT NULL,
+    type VARCHAR(50) NOT NULL, -- e.g., 'new_request', 'status_update'
     is_read BOOLEAN DEFAULT FALSE,
-    metadata JSON DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS tasks (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    request_id INT NOT NULL,
-    assigned_to INT DEFAULT NULL, -- Technician ID
-    changed_by INT NOT NULL, -- User who made the change
-    status ENUM('Assigned', 'In Progress', 'Completed', 'Paused', 'Cancelled') NOT NULL,
-    notes TEXT,
-    due_date DATETIME DEFAULT NULL,
-    start_time DATETIME DEFAULT NULL,
-    completion_time DATETIME DEFAULT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (request_id) REFERENCES maintenance_requests(id) ON DELETE CASCADE,
-    FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS task_completions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    task_id INT NOT NULL,
-    photo_path VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS inventory (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    item_name VARCHAR(150) NOT NULL,
-    category VARCHAR(100) DEFAULT 'General',
-    quantity INT DEFAULT 0,
-    unit VARCHAR(50) DEFAULT 'unit',
-    reorder_level INT DEFAULT 5,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS inventory_transactions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    item_id INT NOT NULL,
-    user_id INT NOT NULL,
-    type ENUM('Add', 'Remove', 'Set', 'Deduction') NOT NULL,
-    quantity_change INT NOT NULL,
-    before_quantity INT NOT NULL,
-    after_quantity INT NOT NULL,
-    reason TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (item_id) REFERENCES inventory(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS low_stock_alerts (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    item_id INT NOT NULL,
-    is_resolved BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    resolved_at DATETIME DEFAULT NULL,
-    FOREIGN KEY (item_id) REFERENCES inventory(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS material_requests (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    task_id INT NOT NULL,
-    requested_by INT NOT NULL,
-    processed_by INT DEFAULT NULL,
-    status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
-    rejection_reason TEXT,
-    total_cost DECIMAL(10, 2) DEFAULT 0.00,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-    FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (processed_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS stock_take_sessions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    status ENUM('Draft', 'Completed') DEFAULT 'Draft',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS stock_take_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    session_id INT NOT NULL,
-    item_id INT NOT NULL,
-    expected_quantity INT NOT NULL,
-    actual_quantity INT NOT NULL,
-    FOREIGN KEY (session_id) REFERENCES stock_take_sessions(id) ON DELETE CASCADE,
-    FOREIGN KEY (item_id) REFERENCES inventory(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS material_request_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    request_id INT NOT NULL,
-    item_id INT NOT NULL,
-    quantity INT NOT NULL,
-    FOREIGN KEY (request_id) REFERENCES material_requests(id) ON DELETE CASCADE,
-    FOREIGN KEY (item_id) REFERENCES inventory(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    action VARCHAR(255) NOT NULL,
-    entity_type VARCHAR(50) NOT NULL, -- 'request', 'user', etc.
-    entity_id INT NOT NULL,
-    details TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS report_schedules (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    report_type VARCHAR(50) NOT NULL,
-    frequency ENUM('Daily', 'Weekly', 'Monthly') NOT NULL,
-    recipients TEXT NOT NULL,
-    last_run DATETIME DEFAULT NULL,
-    next_run DATETIME DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS analytics_cache (
-    cache_key VARCHAR(100) PRIMARY KEY,
-    cache_value JSON NOT NULL,
-    expires_at DATETIME NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
