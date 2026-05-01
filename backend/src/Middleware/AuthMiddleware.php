@@ -21,18 +21,8 @@ class AuthMiddleware {
             Response::error("Invalid or expired token", 401);
         }
 
-        // Normalize required roles to an array for flexible checks. Accepts:
-        // - null (no role required)
-        // - string (single role)
-        // - comma-separated string ("Admin,Technician")
-        // - array of roles
-        if ($requiredRole) {
-            $roles = is_array($requiredRole) ? $requiredRole : array_map('trim', explode(',', $requiredRole));
-
-            // Allow 'Admin' as a superuser to bypass role restrictions
-            if ($decoded['role'] !== 'Admin' && !in_array($decoded['role'], $roles, true)) {
-                Response::error("Forbidden: Insufficient permissions", 403);
-            }
+        if ($requiredRole && $decoded['role'] !== $requiredRole) {
+            Response::error("Forbidden: Insufficient permissions", 403);
         }
 
         return $decoded;
