@@ -46,12 +46,6 @@ class AuthController {
         // Create user
         $stmt = $this->db->prepare("INSERT INTO users (name, email, password_hash, role, status) VALUES (?, ?, ?, ?, 'Active')");
         if ($stmt->execute([$name, $email, $passwordHash, $role])) {
-            $userId = $this->db->lastInsertId();
-            
-            // Notification
-            $notifService = new \App\Services\NotificationService();
-            $notifService->notifyAdmins('user_registered', 'user', $userId, ['name' => $name]);
-
             Response::success("User registered successfully");
         } else {
             Response::error("Failed to register user", 500);
@@ -70,10 +64,6 @@ class AuthController {
         $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
-
-        // Temporary debug logging (remove in production)
-        @mkdir(__DIR__ . '/../../../logs', 0755, true);
-        file_put_contents(__DIR__ . '/../../../logs/auth_debug.log', date('c') . " DB_USER: " . print_r($user, true) . PHP_EOL, FILE_APPEND);
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
             Response::error("Invalid credentials", 401);
