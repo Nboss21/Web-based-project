@@ -1,59 +1,62 @@
+-- PostgreSQL-compatible schema derived from database/schema.sql
+-- NOTE: This file uses SERIAL for auto-increment and VARCHAR instead of ENUMs for simplicity.
+
 CREATE DATABASE IF NOT EXISTS web_project_db;
-USE web_project_db;
+\c web_project_db;
 
 CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('Super Admin', 'Admin', 'User', 'Manager', 'Technician', 'Store Manager') DEFAULT 'User',
+    role VARCHAR(50) DEFAULT 'User',
     specialization VARCHAR(100) DEFAULT NULL,
-    status ENUM('Active', 'Disabled', 'Pending', 'Deleted') DEFAULT 'Active',
+    status VARCHAR(20) DEFAULT 'Active',
     notification_preferences JSON DEFAULT NULL,
-    last_login DATETIME DEFAULT NULL,
+    last_login TIMESTAMP DEFAULT NULL,
     failed_attempts INT DEFAULT 0,
     is_locked BOOLEAN DEFAULT FALSE,
     created_by INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS role_permissions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     role_name VARCHAR(50) NOT NULL,
     permission_key VARCHAR(100) NOT NULL,
     is_enabled BOOLEAN DEFAULT TRUE,
-    UNIQUE KEY (role_name, permission_key)
+    UNIQUE (role_name, permission_key)
 );
 
 CREATE TABLE IF NOT EXISTS password_resets (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     token VARCHAR(255) NOT NULL,
-    expires_at DATETIME NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS maintenance_requests (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     assigned_to INT DEFAULT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     category VARCHAR(100),
-    priority ENUM('Low', 'Medium', 'High', 'Urgent') DEFAULT 'Medium',
-    status ENUM('Pending', 'Assigned', 'In Progress', 'Completed', 'Rejected') DEFAULT 'Pending',
-    assigned_at DATETIME DEFAULT NULL,
+    priority VARCHAR(20) DEFAULT 'Medium',
+    status VARCHAR(20) DEFAULT 'Pending',
+    assigned_at TIMESTAMP DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS request_images (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     request_id INT NOT NULL,
     image_path VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -61,12 +64,12 @@ CREATE TABLE IF NOT EXISTS request_images (
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
-    type VARCHAR(50) NOT NULL, -- task_assigned, status_updated, low_stock, etc.
+    type VARCHAR(50) NOT NULL,
     title VARCHAR(150) NOT NULL,
     message TEXT NOT NULL,
-    related_entity_type VARCHAR(50) DEFAULT NULL, -- request, task, inventory
+    related_entity_type VARCHAR(50) DEFAULT NULL,
     related_entity_id INT DEFAULT NULL,
     is_read BOOLEAN DEFAULT FALSE,
     metadata JSON DEFAULT NULL,
@@ -75,25 +78,25 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     request_id INT NOT NULL,
-    assigned_to INT DEFAULT NULL, -- Technician ID
-    changed_by INT NOT NULL, -- User who made the change
-    status ENUM('Assigned', 'In Progress', 'Completed', 'Paused', 'Cancelled') NOT NULL,
+    assigned_to INT DEFAULT NULL,
+    changed_by INT NOT NULL,
+    status VARCHAR(30) NOT NULL,
     notes TEXT,
-    due_date DATETIME DEFAULT NULL,
-    start_time DATETIME DEFAULT NULL,
-    completion_time DATETIME DEFAULT NULL,
+    due_date TIMESTAMP DEFAULT NULL,
+    start_time TIMESTAMP DEFAULT NULL,
+    completion_time TIMESTAMP DEFAULT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (request_id) REFERENCES maintenance_requests(id) ON DELETE CASCADE,
     FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS task_completions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     task_id INT NOT NULL,
     photo_path VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -101,7 +104,7 @@ CREATE TABLE IF NOT EXISTS task_completions (
 );
 
 CREATE TABLE IF NOT EXISTS inventory (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     item_name VARCHAR(150) NOT NULL,
     category VARCHAR(100) DEFAULT 'General',
     quantity INT DEFAULT 0,
@@ -110,15 +113,15 @@ CREATE TABLE IF NOT EXISTS inventory (
     is_active BOOLEAN DEFAULT TRUE,
     created_by INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS inventory_transactions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     item_id INT NOT NULL,
     user_id INT NOT NULL,
-    type ENUM('Add', 'Remove', 'Set', 'Deduction') NOT NULL,
+    type VARCHAR(20) NOT NULL,
     quantity_change INT NOT NULL,
     before_quantity INT NOT NULL,
     after_quantity INT NOT NULL,
@@ -129,40 +132,40 @@ CREATE TABLE IF NOT EXISTS inventory_transactions (
 );
 
 CREATE TABLE IF NOT EXISTS low_stock_alerts (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     item_id INT NOT NULL,
     is_resolved BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    resolved_at DATETIME DEFAULT NULL,
+    resolved_at TIMESTAMP DEFAULT NULL,
     FOREIGN KEY (item_id) REFERENCES inventory(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS material_requests (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     task_id INT NOT NULL,
     requested_by INT NOT NULL,
     processed_by INT DEFAULT NULL,
-    status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+    status VARCHAR(20) DEFAULT 'Pending',
     rejection_reason TEXT,
-    total_cost DECIMAL(10, 2) DEFAULT 0.00,
+    total_cost NUMERIC(10,2) DEFAULT 0.00,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
     FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (processed_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS stock_take_sessions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
-    status ENUM('Draft', 'Completed') DEFAULT 'Draft',
+    status VARCHAR(20) DEFAULT 'Draft',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS stock_take_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     session_id INT NOT NULL,
     item_id INT NOT NULL,
     expected_quantity INT NOT NULL,
@@ -172,7 +175,7 @@ CREATE TABLE IF NOT EXISTS stock_take_items (
 );
 
 CREATE TABLE IF NOT EXISTS material_request_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     request_id INT NOT NULL,
     item_id INT NOT NULL,
     quantity INT NOT NULL,
@@ -181,10 +184,10 @@ CREATE TABLE IF NOT EXISTS material_request_items (
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     action VARCHAR(255) NOT NULL,
-    entity_type VARCHAR(50) NOT NULL, -- 'request', 'user', etc.
+    entity_type VARCHAR(50) NOT NULL,
     entity_id INT NOT NULL,
     details TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -192,13 +195,13 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 CREATE TABLE IF NOT EXISTS report_schedules (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     report_type VARCHAR(50) NOT NULL,
-    frequency ENUM('Daily', 'Weekly', 'Monthly') NOT NULL,
+    frequency VARCHAR(20) NOT NULL,
     recipients TEXT NOT NULL,
-    last_run DATETIME DEFAULT NULL,
-    next_run DATETIME DEFAULT NULL,
+    last_run TIMESTAMP DEFAULT NULL,
+    next_run TIMESTAMP DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -206,6 +209,6 @@ CREATE TABLE IF NOT EXISTS report_schedules (
 CREATE TABLE IF NOT EXISTS analytics_cache (
     cache_key VARCHAR(100) PRIMARY KEY,
     cache_value JSON NOT NULL,
-    expires_at DATETIME NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    expires_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
