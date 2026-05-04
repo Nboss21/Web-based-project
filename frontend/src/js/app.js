@@ -56,7 +56,6 @@ function updateLayout() {
             </div>
         `;
         
-        // Bind header events
         document.getElementById('logout-btn')?.addEventListener('click', () => {
             AuthService.logout();
             router.navigateTo('/login');
