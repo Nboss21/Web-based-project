@@ -21,8 +21,11 @@ class AuthMiddleware {
             Response::error("Invalid or expired token", 401);
         }
 
-        if ($requiredRole && $decoded['role'] !== $requiredRole) {
-            Response::error("Forbidden: Insufficient permissions", 403);
+        if ($requiredRole) {
+            $roles = is_array($requiredRole) ? $requiredRole : [$requiredRole];
+            if (!in_array($decoded['role'], $roles) && $decoded['role'] !== 'Admin') {
+                Response::error("Forbidden: Insufficient permissions", 403);
+            }
         }
 
         return $decoded;

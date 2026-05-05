@@ -18,6 +18,52 @@ class RequestController {
         }
     }
 
+    public function getRequests($queryParams, $user) {
+        $page = (int)($queryParams['page'] ?? 1);
+        $limit = (int)($queryParams['limit'] ?? 10);
+        $offset = ($page - 1) * $limit;
+
+        $conditions = [];
+        $params = [];
+
+        // Determine visibility based on role
+        if ($user['role'] === 'Student' || $user['role'] === 'Staff') {
+            $conditions[] = "user_id = ?";
+            $params[] = $user['user_id'];
+        }
+        
+        $whereClause = count($conditions) > 0 ? "WHERE " . implode(" AND ", $conditions) : "";
+
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM maintenance_requests $whereClause");
+        $countStmt->execute($params);
+        $total = $countStmt->fetchColumn();
+
+        $stmt = $this->db->prepare("
+            SELECT r.*, u.name as user_name 
+            FROM maintenance_requests r
+            LEFT JOIN users u ON r.user_id = u.id
+            $whereClause
+            ORDER BY r.created_at DESC
+            LIMIT $limit OFFSET $offset
+        ");
+        $stmt->execute($params);
+        $requests = $stmt->fetchAll();
+
+        // Fetch images for each request
+        foreach ($requests as &$req) {
+            $imgStmt = $this->db->prepare("SELECT id, image_path FROM request_images WHERE request_id = ?");
+            $imgStmt->execute([$req['id']]);
+            $req['images'] = $imgStmt->fetchAll();
+        }
+
+        Response::success("Requests fetched successfully", [
+            'total' => (int)$total,
+            'page' => $page,
+            'limit' => $limit,
+            'data' => $requests
+        ]);
+    }
+
     public function createRequest($data, $files, $userId) {
         $title = $this->sanitize($data['title'] ?? '');
         $description = $this->sanitize($data['description'] ?? '');
