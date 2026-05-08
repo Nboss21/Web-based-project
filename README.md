@@ -420,11 +420,3 @@ Covers:
 - [ ] Advanced search/filtering
 
 ---
-
-## 📝 License
-
-Educational project. See institution policies for reuse guidelines.
-
-**Author:** [Your Name]  
-**Institution:** [Your Institution]  
-**Date:** May 2026
