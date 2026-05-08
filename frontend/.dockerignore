@@ -1,0 +1,16 @@
+node_modules
+.git
+.gitignore
+.env.local
+.env.*.local
+.DS_Store
+dist
+build
+.cache
+*.swp
+*.swo
+*~
+.vscode
+.idea
+__pycache__
+*.pyc

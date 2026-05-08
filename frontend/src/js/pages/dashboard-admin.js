@@ -73,7 +73,12 @@ export function renderAdminDashboard(container) {
     ];
 
     async function renderInventory() {
-        document.getElementById('inventory-table-container').innerHTML = '<div class="card">Loading inventory...</div>';
+        const containerEl = document.getElementById('inventory-table-container');
+        if (!containerEl) {
+            console.warn('Inventory container not present; aborting renderInventory');
+            return;
+        }
+        containerEl.innerHTML = '<div class="card">Loading inventory...</div>';
         try {
             const res = await InventoryService.list({ page: 1, limit: 20 });
             const items = (res && res.data) ? res.data : [];
@@ -88,9 +93,9 @@ export function renderAdminDashboard(container) {
                 status: i.stock_status || (i.quantity <= (i.reorder_level ?? 0) ? 'Low Stock' : 'In Stock')
             }));
 
-            document.getElementById('inventory-table-container').innerHTML = createTable({ columns, data: inventory });
+            containerEl.innerHTML = createTable({ columns, data: inventory });
         } catch (e) {
-            document.getElementById('inventory-table-container').innerHTML = '<div class="card text-danger">Failed to load inventory</div>';
+            if (containerEl) containerEl.innerHTML = '<div class="card text-danger">Failed to load inventory</div>';
             console.error(e);
         }
     }

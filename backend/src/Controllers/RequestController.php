@@ -105,6 +105,67 @@ class RequestController {
         }
     }
 
+    public function assignTechnician($requestId, $data, $admin) {
+        if (!in_array($admin['role'], ['Admin', 'Manager', 'Store Manager'], true)) {
+            Response::error('Forbidden', 403);
+        }
+
+        $technicianId = $data['technician_id'] ?? $data['assigned_to'] ?? null;
+        if (!$technicianId) {
+            Response::error('Technician ID is required');
+        }
+
+        $stmt = $this->db->prepare("SELECT id, role, status, name FROM users WHERE id = ?");
+        $stmt->execute([$technicianId]);
+        $technician = $stmt->fetch();
+
+        if (!$technician || $technician['role'] !== 'Technician' || $technician['status'] !== 'Active') {
+            Response::error('Technician not found or inactive', 404);
+        }
+
+        $stmt = $this->db->prepare("SELECT id, user_id, title, status FROM maintenance_requests WHERE id = ?");
+        $stmt->execute([$requestId]);
+        $request = $stmt->fetch();
+
+        if (!$request) {
+            Response::error('Request not found', 404);
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->prepare("UPDATE maintenance_requests SET assigned_to = ?, status = 'Assigned', processed_by = ? WHERE id = ?");
+            $stmt->execute([$technicianId, $admin['user_id'], $requestId]);
+
+            $notif = new \App\Services\NotificationService();
+            $notif->createNotification(
+                $technicianId,
+                'request_assigned',
+                'request',
+                $requestId,
+                ['id' => $requestId, 'title' => $request['title'], 'assigned_to' => $technician['name']]
+            );
+
+            $notif->createNotification(
+                $request['user_id'],
+                'request_assigned',
+                'request',
+                $requestId,
+                ['id' => $requestId, 'title' => $request['title'], 'assigned_to' => $technician['name']]
+            );
+
+            $this->db->commit();
+
+            Response::success('Technician assigned', [
+                'request_id' => (int)$requestId,
+                'technician_id' => (int)$technicianId,
+                'status' => 'Assigned'
+            ]);
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            Response::error('Failed to assign technician: ' . $e->getMessage(), 500);
+        }
+    }
+
     private function sanitize($input) {
         return htmlspecialchars(strip_tags(trim($input)), ENT_QUOTES, 'UTF-8');
     }
@@ -113,7 +174,7 @@ class RequestController {
         $stmt = $this->db->prepare("
             SELECT id FROM maintenance_requests 
             WHERE user_id = ? AND title = ? AND description = ? 
-            AND created_at > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+            AND created_at > (NOW() - INTERVAL '5 minutes')
         ");
         $stmt->execute([$userId, $title, $description]);
         return $stmt->fetch() !== false;

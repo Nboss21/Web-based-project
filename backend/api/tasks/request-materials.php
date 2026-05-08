@@ -14,5 +14,10 @@ if (!$id) {
     Response::error("Task ID is required");
 }
 
-$data = json_decode(file_get_contents("php://input"), true);
+use App\Utils\Input;
+
+Input::requirePost();
+$data = Input::getJsonBody();
+if (!is_array($data)) Response::error('Invalid or missing JSON body', 400);
+
 $controller->requestMaterials($id, $data, $user['user_id']);

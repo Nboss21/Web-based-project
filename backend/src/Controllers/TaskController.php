@@ -24,7 +24,13 @@ class TaskController {
             FROM tasks t
             JOIN maintenance_requests r ON t.request_id = r.id
             WHERE t.assigned_to = ? AND t.is_active = TRUE AND t.status != 'Completed'
-            ORDER BY FIELD(r.priority, 'Urgent', 'High', 'Medium', 'Low'), t.created_at ASC
+            ORDER BY CASE r.priority
+                WHEN 'Urgent' THEN 1
+                WHEN 'High' THEN 2
+                WHEN 'Medium' THEN 3
+                WHEN 'Low' THEN 4
+                ELSE 5
+            END, t.created_at ASC
         ");
         $stmt->execute([$userId]);
         $tasks = $stmt->fetchAll();
@@ -142,7 +148,7 @@ class TaskController {
         // Map task status to request status
         $reqStatus = $taskStatus;
         if ($taskStatus === 'Assigned') $reqStatus = 'Assigned';
-        
+
         $stmt = $this->db->prepare("UPDATE maintenance_requests SET status = ? WHERE id = ?");
         $stmt->execute([$reqStatus, $requestId]);
     }

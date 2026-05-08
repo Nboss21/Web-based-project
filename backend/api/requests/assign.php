@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../bootstrap.php';
 use App\Controllers\RequestController;
 use App\Middleware\AuthMiddleware;
 use App\Utils\Response;
+use App\Utils\Input;
 
 $user = AuthMiddleware::authenticate();
 $controller = new RequestController();
@@ -14,5 +15,8 @@ if (!$id) {
     Response::error("Request ID is required");
 }
 
-$data = json_decode(file_get_contents("php://input"), true);
+Input::requirePost();
+$data = Input::getJsonBody();
+if (!is_array($data)) Response::error('Invalid or missing JSON body', 400);
+
 $controller->assignTechnician($id, $data, $user);

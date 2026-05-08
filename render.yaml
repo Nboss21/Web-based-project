@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: campus-cms-backend
+    env: php
+    buildCommand: composer install --no-dev --optimize-autoloader
+    startCommand: php -S 0.0.0.0:$PORT
+    rootDir: backend
+    
+    envVars:
+      - key: NEON_DATABASE_URL
+        scope: build,runtime
+        sync: false
+      - key: APP_ENV
+        value: production
+        sync: false
+      - key: JWT_SECRET
+        scope: runtime
+        sync: false
+      - key: CORS_ORIGINS
+        scope: runtime
+        sync: false
+
+  - type: web
+    name: campus-cms-frontend
+    env: node
+    buildCommand: npm install
+    startCommand: npm run dev
+    rootDir: frontend
+    
+    envVars:
+      - key: VITE_API_URL
+        scope: build,runtime
+        sync: false
+      - key: VITE_APP_ENV
+        value: production
+        sync: false

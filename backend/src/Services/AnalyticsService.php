@@ -25,11 +25,17 @@ class AnalyticsService {
 
     private function setCache($key, $value, $ttlSeconds = 300) {
         $expires = date('Y-m-d H:i:s', time() + $ttlSeconds);
-        $stmt = $this->db->prepare("
-            INSERT INTO analytics_cache (cache_key, cache_value, expires_at) 
-            VALUES (?, ?, ?) 
-            ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)
-        ");
+        // Use Postgres ON CONFLICT if using pgsql driver, otherwise use MySQL syntax
+        $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'pgsql') {
+            $stmt = $this->db->prepare(
+                "INSERT INTO analytics_cache (cache_key, cache_value, expires_at) VALUES (?, ?, ?) ON CONFLICT (cache_key) DO UPDATE SET cache_value = EXCLUDED.cache_value, expires_at = EXCLUDED.expires_at"
+            );
+        } else {
+            $stmt = $this->db->prepare(
+                "INSERT INTO analytics_cache (cache_key, cache_value, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)"
+            );
+        }
         $stmt->execute([$key, json_encode($value), $expires]);
     }
 
@@ -40,21 +46,37 @@ class AnalyticsService {
         $cacheKey = "timeline_{$startDate}_{$endDate}_{$interval}";
         if ($cached = $this->getCache($cacheKey)) return $cached;
 
-        $format = "%Y-%m-%d";
-        if ($interval === 'week') $format = "%x-%v"; // Year and week
-        elseif ($interval === 'month') $format = "%Y-%m";
+        $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
 
-        $stmt = $this->db->prepare("
-            SELECT 
-                DATE_FORMAT(created_at, ?) as date,
-                COUNT(*) as submitted,
-                SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed
-            FROM maintenance_requests
-            WHERE created_at BETWEEN ? AND ?
-            GROUP BY date
-            ORDER BY date ASC
-        ");
-        $stmt->execute([$format, $startDate . " 00:00:00", $endDate . " 23:59:59"]);
+        if ($driver === 'pgsql') {
+            if ($interval === 'week') {
+                $dateExpr = "to_char(date_trunc('week', created_at), 'IYYY-IW')";
+            } elseif ($interval === 'month') {
+                $dateExpr = "to_char(created_at, 'YYYY-MM')";
+            } else {
+                $dateExpr = "to_char(created_at, 'YYYY-MM-DD')";
+            }
+
+            $sql = "SELECT {$dateExpr} as date, COUNT(*) as submitted, SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed FROM maintenance_requests WHERE created_at BETWEEN ? AND ? GROUP BY date ORDER BY date ASC";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$startDate . " 00:00:00", $endDate . " 23:59:59"]);
+        } else {
+            $format = "%Y-%m-%d";
+            if ($interval === 'week') $format = "%x-%v"; // Year and week
+            elseif ($interval === 'month') $format = "%Y-%m";
+
+            $stmt = $this->db->prepare("
+                SELECT 
+                    DATE_FORMAT(created_at, ?) as date,
+                    COUNT(*) as submitted,
+                    SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed
+                FROM maintenance_requests
+                WHERE created_at BETWEEN ? AND ?
+                GROUP BY date
+                ORDER BY date ASC
+            ");
+            $stmt->execute([$format, $startDate . " 00:00:00", $endDate . " 23:59:59"]);
+        }
         $result = $stmt->fetchAll();
 
         $this->setCache($cacheKey, $result);
@@ -91,19 +113,25 @@ class AnalyticsService {
         $cacheKey = "tech_perf";
         if ($cached = $this->getCache($cacheKey)) return $cached;
 
-        $stmt = $this->db->prepare("
-            SELECT 
-                u.id, u.name,
-                COUNT(t.id) as total_assigned,
-                SUM(CASE WHEN t.status = 'Completed' THEN 1 ELSE 0 END) as total_completed,
-                (SUM(CASE WHEN t.status = 'Completed' THEN 1 ELSE 0 END) / COUNT(t.id)) * 100 as completion_rate,
-                AVG(TIMESTAMPDIFF(SECOND, t.start_time, t.completion_time)) / 3600 as avg_resolution_hours
-            FROM users u
-            JOIN tasks t ON u.id = t.assigned_to
-            WHERE u.role = 'Technician'
-            GROUP BY u.id
-            ORDER BY completion_rate DESC
-        ");
+        $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'pgsql') {
+            $sql = "SELECT u.id, u.name, COUNT(t.id) as total_assigned, SUM(CASE WHEN t.status = 'Completed' THEN 1 ELSE 0 END) as total_completed, (SUM(CASE WHEN t.status = 'Completed' THEN 1 ELSE 0 END) / COUNT(t.id)) * 100 as completion_rate, AVG(EXTRACT(EPOCH FROM (t.completion_time - t.start_time))) / 3600 as avg_resolution_hours FROM users u JOIN tasks t ON u.id = t.assigned_to WHERE u.role = 'Technician' GROUP BY u.id ORDER BY completion_rate DESC";
+            $stmt = $this->db->prepare($sql);
+        } else {
+            $stmt = $this->db->prepare("
+                SELECT 
+                    u.id, u.name,
+                    COUNT(t.id) as total_assigned,
+                    SUM(CASE WHEN t.status = 'Completed' THEN 1 ELSE 0 END) as total_completed,
+                    (SUM(CASE WHEN t.status = 'Completed' THEN 1 ELSE 0 END) / COUNT(t.id)) * 100 as completion_rate,
+                    AVG(TIMESTAMPDIFF(SECOND, t.start_time, t.completion_time)) / 3600 as avg_resolution_hours
+                FROM users u
+                JOIN tasks t ON u.id = t.assigned_to
+                WHERE u.role = 'Technician'
+                GROUP BY u.id
+                ORDER BY completion_rate DESC
+            ");
+        }
         $stmt->execute();
         $result = $stmt->fetchAll();
 

@@ -24,7 +24,7 @@ class UserController {
         $limit = (int)($queryParams['limit'] ?? 10);
         $offset = ($page - 1) * $limit;
 
-        $conditions = ["status != 'Deleted'"];
+        $conditions = ["status = 'Active'"];
         $params = [];
 
         if (!empty($queryParams['role'])) {
@@ -145,7 +145,7 @@ class UserController {
         if ($hardDelete) {
             $stmt = $this->db->prepare("DELETE FROM users WHERE id = ?");
         } else {
-            $stmt = $this->db->prepare("UPDATE users SET status = 'Deleted' WHERE id = ?");
+            $stmt = $this->db->prepare("UPDATE users SET status = 'Disabled' WHERE id = ?");
         }
         
         $stmt->execute([$id]);

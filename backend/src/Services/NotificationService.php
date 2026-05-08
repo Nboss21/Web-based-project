@@ -93,7 +93,7 @@ class NotificationService {
      * Notify Store Managers
      */
     public function notifyStoreManagers($type, $entityType = null, $entityId = null, $extraData = []) {
-        $stmt = $this->db->prepare("SELECT id FROM users WHERE role = 'Store Manager' OR role = 'Manager'");
+        $stmt = $this->db->prepare("SELECT id FROM users WHERE role IN ('Manager', 'Admin')");
         $stmt->execute();
         $managers = $stmt->fetchAll(PDO::FETCH_COLUMN);
 

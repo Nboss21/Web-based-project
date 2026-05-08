@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../bootstrap.php';
 use App\Controllers\TaskController;
 use App\Middleware\AuthMiddleware;
 use App\Utils\Response;
+use App\Utils\Input;
 
 $user = AuthMiddleware::authenticate('Technician');
 $controller = new TaskController();
@@ -15,4 +16,12 @@ if (!$id) {
 }
 
 // Multipart/form-data support for photos
-$controller->updateStatus($id, $_POST, $_FILES, $user['user_id']);
+// If JSON payload is sent
+if (($_SERVER['CONTENT_TYPE'] ?? '') === 'application/json') {
+    Input::requirePost();
+    $data = Input::getJsonBody();
+    if (!is_array($data)) Response::error('Invalid or missing JSON body', 400);
+    $controller->updateStatus($id, $data, [], $user['user_id']);
+} else {
+    $controller->updateStatus($id, $_POST, $_FILES, $user['user_id']);
+}

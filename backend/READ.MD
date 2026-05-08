@@ -11,9 +11,13 @@ This is a modular PHP backend with JWT authentication and role-based access cont
     ```
 
 2.  **Database Configuration**:
-    - Create a MySQL database named `web_project_db`.
-    - Import the schema from `database/schema.sql`.
-    - Update the `.env` file with your database credentials.
+        - For MySQL: create a database named `web_project_db` and import `database/schema.sql`.
+        - For PostgreSQL / Neon: set `NEON_DATABASE_URL` (or `DATABASE_URL`) in your environment and import `database/schema.pgsql`.
+            You can use the included script to import the Postgres schema:
+            ```bash
+            php scripts/import_schema_pgsql.php
+            ```
+        - Update the `.env` file with your database credentials or set `NEON_DATABASE_URL`.
 
 3.  **Run the Server**:
     If you have PHP installed, you can run:
