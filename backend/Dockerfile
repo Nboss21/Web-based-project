@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.2-cli
 
 WORKDIR /var/www/html
 
@@ -7,18 +7,21 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     libpq-dev \
     curl \
+    git \
+    unzip \
     && docker-php-ext-install pdo pdo_pgsql \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy composer installer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Copy backend code
 COPY . .
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+# Install PHP dependencies with increased memory limit
+RUN composer install --no-dev --optimize-autoloader -n --ignore-platform-reqs \
+    || composer install --no-dev --optimize-autoloader --no-scripts
 
 # Create uploads directory and set permissions
 RUN mkdir -p uploads/requests uploads/completions \

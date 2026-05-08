@@ -25,7 +25,11 @@ export async function fetchApi(endpoint, options = {}) {
     // Normalize: ensure `.data` always exists for client code expectations
     if (Array.isArray(data)) {
       data = { message: null, data };
-    } else if (data && typeof data === "object" && !Object.prototype.hasOwnProperty.call(data, "data")) {
+    } else if (
+      data &&
+      typeof data === "object" &&
+      !Object.prototype.hasOwnProperty.call(data, "data")
+    ) {
       // Keep existing keys but ensure `data` key exists (null when not provided)
       data.data = null;
     }

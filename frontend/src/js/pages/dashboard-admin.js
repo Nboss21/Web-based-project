@@ -1,11 +1,11 @@
 // src/js/pages/dashboard-admin.js
-import { createTable } from '../components/table.js';
-import { showModal } from '../components/modal.js';
-import { showToast } from '../components/toast.js';
-import { InventoryService } from '../api/inventory.js';
+import { createTable } from "../components/table.js";
+import { showModal } from "../components/modal.js";
+import { showToast } from "../components/toast.js";
+import { InventoryService } from "../api/inventory.js";
 
 export function renderAdminDashboard(container) {
-    container.innerHTML = `
+  container.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
             <div>
                 <h1>Admin Dashboard</h1>
@@ -56,57 +56,77 @@ export function renderAdminDashboard(container) {
         </div>
     `;
 
-    let inventory = [];
+  let inventory = [];
 
-    const columns = [
-        { key: 'item', label: 'Item Name', render: (val) => `<span class="font-medium">${val}</span>` },
-        { key: 'category', label: 'Category' },
-        { key: 'quantity', label: 'Qty' },
-        { key: 'status', label: 'Status', render: (val) => {
-            if (val === 'In Stock') return `<span class="badge badge-success">${val}</span>`;
-            if (val === 'Low Stock') return `<span class="badge badge-warning">${val}</span>`;
-            return `<span class="badge badge-danger">${val}</span>`;
-        }},
-        { key: 'actions', label: '', render: (_, row) => `
+  const columns = [
+    {
+      key: "item",
+      label: "Item Name",
+      render: (val) => `<span class="font-medium">${val}</span>`,
+    },
+    { key: "category", label: "Category" },
+    { key: "quantity", label: "Qty" },
+    {
+      key: "status",
+      label: "Status",
+      render: (val) => {
+        if (val === "In Stock")
+          return `<span class="badge badge-success">${val}</span>`;
+        if (val === "Low Stock")
+          return `<span class="badge badge-warning">${val}</span>`;
+        return `<span class="badge badge-danger">${val}</span>`;
+      },
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (_, row) => `
             <button class="btn btn-secondary btn-sm" onclick="window.orderItem('${row.id}')">Order</button>
-        `}
-    ];
+        `,
+    },
+  ];
 
-    async function renderInventory() {
-        const containerEl = document.getElementById('inventory-table-container');
-        if (!containerEl) {
-            console.warn('Inventory container not present; aborting renderInventory');
-            return;
-        }
-        containerEl.innerHTML = '<div class="card">Loading inventory...</div>';
-        try {
-            const res = await InventoryService.list({ page: 1, limit: 20 });
-            const items = (res && res.data) ? res.data : [];
-
-            // Map backend fields to UI-friendly shape
-            inventory = items.map(i => ({
-                id: i.id,
-                item: i.item_name || i.name || 'Unnamed',
-                category: i.category,
-                quantity: i.quantity,
-                threshold: i.reorder_level || i.threshold || 0,
-                status: i.stock_status || (i.quantity <= (i.reorder_level ?? 0) ? 'Low Stock' : 'In Stock')
-            }));
-
-            containerEl.innerHTML = createTable({ columns, data: inventory });
-        } catch (e) {
-            if (containerEl) containerEl.innerHTML = '<div class="card text-danger">Failed to load inventory</div>';
-            console.error(e);
-        }
+  async function renderInventory() {
+    const containerEl = document.getElementById("inventory-table-container");
+    if (!containerEl) {
+      console.warn("Inventory container not present; aborting renderInventory");
+      return;
     }
+    containerEl.innerHTML = '<div class="card">Loading inventory...</div>';
+    try {
+      const res = await InventoryService.list({ page: 1, limit: 20 });
+      const items = res && res.data ? res.data : [];
 
-    renderInventory();
+      // Map backend fields to UI-friendly shape
+      inventory = items.map((i) => ({
+        id: i.id,
+        item: i.item_name || i.name || "Unnamed",
+        category: i.category,
+        quantity: i.quantity,
+        threshold: i.reorder_level || i.threshold || 0,
+        status:
+          i.stock_status ||
+          (i.quantity <= (i.reorder_level ?? 0) ? "Low Stock" : "In Stock"),
+      }));
 
-    // Interactive Generate Report Logic
-    document.getElementById('btn-generate-report').addEventListener('click', () => {
-        showModal({
-            title: 'Generate System Report',
-            body: `
+      containerEl.innerHTML = createTable({ columns, data: inventory });
+    } catch (e) {
+      if (containerEl)
+        containerEl.innerHTML =
+          '<div class="card text-danger">Failed to load inventory</div>';
+      console.error(e);
+    }
+  }
+
+  renderInventory();
+
+  // Interactive Generate Report Logic
+  document
+    .getElementById("btn-generate-report")
+    .addEventListener("click", () => {
+      showModal({
+        title: "Generate System Report",
+        body: `
                 <div class="form-group">
                     <label class="form-label">Report Type</label>
                     <select id="report-type" class="form-control">
@@ -123,34 +143,37 @@ export function renderAdminDashboard(container) {
                     </div>
                 </div>
             `,
-            actions: [
-                {
-                    label: 'Download Report',
-                    onClick: (e, close) => {
-                        const type = document.getElementById('report-type').value;
-                        const btn = e.target;
-                        btn.disabled = true;
-                        btn.textContent = 'Generating...';
-                        
-                        // Simulate generation delay
-                        setTimeout(() => {
-                            showToast(`${type.toUpperCase()} report generated successfully!`, 'success');
-                            close();
-                        }, 1200);
-                    }
-                }
-            ]
-        });
+        actions: [
+          {
+            label: "Download Report",
+            onClick: (e, close) => {
+              const type = document.getElementById("report-type").value;
+              const btn = e.target;
+              btn.disabled = true;
+              btn.textContent = "Generating...";
+
+              // Simulate generation delay
+              setTimeout(() => {
+                showToast(
+                  `${type.toUpperCase()} report generated successfully!`,
+                  "success",
+                );
+                close();
+              }, 1200);
+            },
+          },
+        ],
+      });
     });
 
-    // Interactive Inventory Ordering
-    window.orderItem = (id) => {
-        const item = inventory.find(i => i.id == id);
-        if (!item) return;
+  // Interactive Inventory Ordering
+  window.orderItem = (id) => {
+    const item = inventory.find((i) => i.id == id);
+    if (!item) return;
 
-        showModal({
-            title: `Order Stock: ${item.item}`,
-            body: `
+    showModal({
+      title: `Order Stock: ${item.item}`,
+      body: `
                 <div style="margin-bottom: 1rem;">
                     <p>Current Quantity: <strong>${item.quantity}</strong></p>
                     <p>Low Stock Threshold: <strong>${item.threshold}</strong></p>
@@ -160,24 +183,31 @@ export function renderAdminDashboard(container) {
                     <input type="number" id="order-quantity" class="form-control" value="10" min="1">
                 </div>
             `,
-            actions: [
-                {
-                    label: 'Place Order',
-                    onClick: async (e, close) => {
-                        const qty = parseInt(document.getElementById('order-quantity').value, 10);
-                        if (isNaN(qty) || qty <= 0) return;
-                        try {
-                            const resp = await InventoryService.adjust(item.id, { adjustment_type: 'Add', quantity: qty, reason: 'Manual order via admin UI' });
-                            showToast(resp.message || 'Order placed', 'success');
-                            await renderInventory();
-                            close();
-                        } catch (err) {
-                            console.error(err);
-                            showToast(err.message || 'Failed to order', 'danger');
-                        }
-                    }
-                }
-            ]
-        });
-    };
+      actions: [
+        {
+          label: "Place Order",
+          onClick: async (e, close) => {
+            const qty = parseInt(
+              document.getElementById("order-quantity").value,
+              10,
+            );
+            if (isNaN(qty) || qty <= 0) return;
+            try {
+              const resp = await InventoryService.adjust(item.id, {
+                adjustment_type: "Add",
+                quantity: qty,
+                reason: "Manual order via admin UI",
+              });
+              showToast(resp.message || "Order placed", "success");
+              await renderInventory();
+              close();
+            } catch (err) {
+              console.error(err);
+              showToast(err.message || "Failed to order", "danger");
+            }
+          },
+        },
+      ],
+    });
+  };
 }

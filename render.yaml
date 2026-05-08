@@ -5,7 +5,7 @@ services:
     buildCommand: composer install --no-dev --optimize-autoloader
     startCommand: php -S 0.0.0.0:$PORT
     rootDir: backend
-    
+
     envVars:
       - key: NEON_DATABASE_URL
         scope: build,runtime
@@ -26,7 +26,7 @@ services:
     buildCommand: npm install
     startCommand: npm run dev
     rootDir: frontend
-    
+
     envVars:
       - key: VITE_API_URL
         scope: build,runtime
